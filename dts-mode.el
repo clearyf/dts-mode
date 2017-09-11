@@ -76,23 +76,31 @@
       (goto-char 0)
       (while (re-search-forward "\\([{}]\\)" end t)
         (if (string= (match-string-no-properties 0) "{")
-            (setq cnt (1+ cnt))
-          (setq cnt (1- cnt))))
+            (setq cnt (+ cnt tab-width))
+          (setq cnt (- cnt tab-width))))
       ;; subtract one if the current line has an opening brace since we
       ;; shouldn't add the indentation level until the following line
       (goto-char initial-point)
       (beginning-of-line)
       (when (re-search-forward "{" (point-at-eol) t)
-        (setq cnt (1- cnt)))
+        (setq cnt (- cnt tab-width)))
+      ;; check if the last assignment is closed.
+      (save-excursion
+        (re-search-backward "[=;]" 0 t)
+        (when (looking-at "=")
+          (message "Found =")
+          (when (re-search-forward "<" (point-at-eol) t)
+            (if (= (point-at-eol) (point))
+                (setq cnt (+ cnt tab-width))
+              (setq cnt (+ cnt (- (point) (point-at-bol) 3)))))))
       cnt)))
 
 (defun dts-indent-line ()
   (interactive)
-  (let ((indent (dts--calculate-indentation)))
-    (save-excursion
-      (indent-line-to (* indent tab-width)))
-    (when (or (bolp) (looking-back "^[[:space:]]+"))
-      (beginning-of-line-text))))
+  (save-excursion
+    (indent-line-to (dts--calculate-indentation)))
+  (when (or (bolp) (looking-back "^[[:space:]]+"))
+    (beginning-of-line-text)))
 
 (defalias 'dts-parent-mode
   (if (fboundp 'prog-mode) 'prog-mode 'fundamental-mode))
